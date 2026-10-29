@@ -7,13 +7,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50:  '#eff6ff',
-          100: '#dbeafe',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
+        aurora: {
+          dark: '#080c14',
+          card: 'rgba(15, 23, 42, 0.72)',
+          border: 'rgba(51, 65, 85, 0.6)',
+          cyan: '#38bdf8',
+          mint: '#10b981',
+          emerald: '#34d399',
+          amber: '#f59e0b',
+          rose: '#f43f5e',
+          violet: '#a855f7',
         }
+      },
+      fontFamily: {
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
       }
     },
   },
