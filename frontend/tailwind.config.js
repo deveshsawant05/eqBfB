@@ -7,21 +7,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        aurora: {
-          dark: '#080c14',
-          card: 'rgba(15, 23, 42, 0.72)',
-          border: 'rgba(51, 65, 85, 0.6)',
-          cyan: '#38bdf8',
-          mint: '#10b981',
-          emerald: '#34d399',
-          amber: '#f59e0b',
-          rose: '#f43f5e',
-          violet: '#a855f7',
-        }
+        paper: {
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#e2e8f0',
+        },
+        navy: {
+          800: '#1e293b',
+          900: '#0f172a',
+          950: '#020617',
+        },
       },
       fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-      }
+        sans: [
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          'sans-serif',
+        ],
+        mono: [
+          'ui-monospace',
+          'SFMono-Regular',
+          'Menlo',
+          'Monaco',
+          'Consolas',
+          'monospace',
+        ],
+      },
     },
   },
   plugins: [],

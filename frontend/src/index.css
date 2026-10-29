@@ -4,49 +4,29 @@
 
 @layer base {
   body {
-    @apply bg-[#080c14] text-slate-100 antialiased selection:bg-cyan-500/30 selection:text-cyan-200 min-h-screen;
-    background-image: 
-      radial-gradient(at 15% 15%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
-      radial-gradient(at 85% 20%, rgba(16, 185, 129, 0.07) 0px, transparent 50%),
-      radial-gradient(at 50% 90%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
-    background-attachment: fixed;
+    @apply bg-slate-50 text-slate-800 antialiased min-h-screen;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-slate-900/65 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-5 shadow-xl shadow-black/40 transition-all duration-200;
+  .panel {
+    @apply bg-white border border-slate-200/90 rounded-xl p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)];
   }
 
-  .glass-card-hover {
-    @apply hover:border-slate-700/80 hover:bg-slate-900/80 hover:shadow-cyan-950/20;
+  .stat-card {
+    @apply bg-white border border-slate-200/90 rounded-xl p-4 shadow-[0_1px_2px_rgba(15,23,42,0.03)];
   }
 
-  .nav-tab-active {
-    @apply bg-gradient-to-r from-cyan-500/20 to-emerald-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/10 font-medium;
+  .tab-btn {
+    @apply px-4 py-2 text-sm font-medium transition-colors border-b-2;
   }
 
-  .nav-tab-inactive {
-    @apply text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent;
+  .tab-btn-active {
+    @apply border-slate-900 text-slate-900;
   }
 
-  .metric-badge {
-    @apply px-2.5 py-1 rounded-full text-xs font-mono tracking-tight font-medium border;
+  .tab-btn-inactive {
+    @apply border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300;
   }
-}
-
-/* Custom scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #080c14;
-}
-::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
 }
