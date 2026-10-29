@@ -69,8 +69,10 @@ async def test_parse_forecasts_picks_latest_before_gate():
     ]
 
     df = svc._parse_forecasts(records, delivery_dt, gate_closure)
-    assert len(df) == 1
-    assert df.iloc[0]["forecastMW"] == 5200
+    # The hourly forecast at 00:00 expands to both SP 1 (00:00) and SP 2 (00:30)
+    assert len(df) == 2
+    assert list(df["forecastMW"]) == [5200, 5200]
+    assert list(df["settlementPeriod"]) == [1, 2]
     assert "2026-01-14T10:30:00Z" in df.iloc[0]["publishTime"]
 
 

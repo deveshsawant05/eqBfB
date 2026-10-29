@@ -3,7 +3,7 @@ import { fetchForecasts, fetchActuals } from '../api/client';
 import type { ChartPoint } from '../types';
 import { format } from 'date-fns';
 
-/** Formats settlement period number to HH:MM string */
+/** Formats settlement period number (1..48) to HH:MM string */
 function periodToLabel(sp: number): string {
   const totalMinutes = (sp - 1) * 30;
   const h = Math.floor(totalMinutes / 60).toString().padStart(2, '0');
@@ -31,36 +31,54 @@ export function useForecastData(date: Date): UseForecastDataResult {
     setData([]);
     setForecastPublishTime(null);
 
+    let fcErr: Error | null = null;
+    let actErr: Error | null = null;
+
     Promise.all([
-      fetchForecasts(dateStr).catch(() => [] as Awaited<ReturnType<typeof fetchForecasts>>),
-      fetchActuals(dateStr).catch(() => [] as Awaited<ReturnType<typeof fetchActuals>>),
+      fetchForecasts(dateStr).catch((err) => {
+        fcErr = err;
+        return [];
+      }),
+      fetchActuals(dateStr).catch((err) => {
+        actErr = err;
+        return [];
+      }),
     ])
       .then(([forecasts, actuals]) => {
+        if (forecasts.length === 0 && actuals.length === 0) {
+          const msg =
+            fcErr?.message || actErr?.message || `No data returned for ${dateStr}`;
+          setError(msg);
+          return;
+        }
+
         const map = new Map<number, ChartPoint>();
 
-        // Seed map from forecasts
-        forecasts.forEach((f) => {
-          map.set(f.settlementPeriod, {
-            startTime: f.startTime,
-            settlementPeriod: f.settlementPeriod,
-            label: periodToLabel(f.settlementPeriod),
-            forecastMW: f.forecastMW,
-            publishTime: f.publishTime,
+        // Pre-seed all 48 settlement periods so axis is always continuous
+        for (let sp = 1; sp <= 48; sp++) {
+          map.set(sp, {
+            startTime: '',
+            settlementPeriod: sp,
+            label: periodToLabel(sp),
           });
+        }
+
+        // Merge forecasts
+        forecasts.forEach((f) => {
+          const pt = map.get(f.settlementPeriod);
+          if (pt) {
+            pt.startTime = f.startTime;
+            pt.forecastMW = f.forecastMW;
+            pt.publishTime = f.publishTime;
+          }
         });
 
         // Merge actuals
         actuals.forEach((a) => {
-          const existing = map.get(a.settlementPeriod);
-          if (existing) {
-            map.set(a.settlementPeriod, { ...existing, actualMW: a.actualMW });
-          } else {
-            map.set(a.settlementPeriod, {
-              startTime: a.startTime,
-              settlementPeriod: a.settlementPeriod,
-              label: periodToLabel(a.settlementPeriod),
-              actualMW: a.actualMW,
-            });
+          const pt = map.get(a.settlementPeriod);
+          if (pt) {
+            if (!pt.startTime) pt.startTime = a.startTime;
+            pt.actualMW = a.actualMW;
           }
         });
 
@@ -69,9 +87,10 @@ export function useForecastData(date: Date): UseForecastDataResult {
         );
         setData(sorted);
 
-        // Extract the publish time from the first forecast point (they share the same run)
-        if (forecasts.length > 0) {
-          setForecastPublishTime(forecasts[0].publishTime);
+        // Extract the publish time from the first valid forecast point
+        const firstWithPub = forecasts.find((f) => f.publishTime);
+        if (firstWithPub) {
+          setForecastPublishTime(firstWithPub.publishTime);
         }
       })
       .catch((err: Error) => setError(err.message))

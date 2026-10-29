@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
 from app.services.elexon_service import ElexonService
+import pandas as pd
 import re
 import logging
 
@@ -70,9 +71,8 @@ async def get_actuals(
             detail=f"No actuals data found for {date}. Data may not yet be published for this date."
         )
 
-    # Serialize datetimes to strings if needed
+    # Serialize datetimes to strings
     df = df.copy()
-    if hasattr(df["startTime"].iloc[0], "strftime"):
-        df["startTime"] = df["startTime"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    df["startTime"] = pd.to_datetime(df["startTime"], utc=True).dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return df.to_dict(orient="records")

@@ -114,25 +114,27 @@ export function AccuracyPanel({ metrics }: Props) {
         <p className="text-xs text-gray-400 mb-3">
           Positive = over-forecast (forecast &gt; actual). Negative = under-forecast.
         </p>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={metrics.error_by_period} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis
-              dataKey="period"
-              tick={{ fontSize: 9, fill: '#9ca3af' }}
-              interval={5}
-              tickFormatter={periodToTime}
-              label={{ value: 'Settlement Period (UTC)', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
-            />
-            <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-            <Tooltip
-              formatter={(v: number) => [`${v.toFixed(0)} MW`]}
-              labelFormatter={(sp) => `Period ${sp} (${periodToTime(Number(sp))})`}
-            />
-            <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} />
-            <Bar dataKey="bias" name="Bias (MW)" fill="#6366f1" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <div className="w-full h-[240px] min-h-[240px] relative">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
+            <BarChart data={metrics.error_by_period} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="period"
+                tick={{ fontSize: 9, fill: '#9ca3af' }}
+                interval={5}
+                tickFormatter={periodToTime}
+                label={{ value: 'Settlement Period (UTC)', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
+              />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
+              <Tooltip
+                formatter={(v: number) => [`${v.toFixed(0)} MW`]}
+                labelFormatter={(sp) => `Period ${sp} (${periodToTime(Number(sp))})`}
+              />
+              <ReferenceLine y={0} stroke="#374151" strokeWidth={1.5} />
+              <Bar dataKey="bias" name="Bias (MW)" fill="#6366f1" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ── MAE by Settlement Period ───────────────────────────────────────── */}
@@ -143,24 +145,26 @@ export function AccuracyPanel({ metrics }: Props) {
         <p className="text-xs text-gray-400 mb-3">
           Which periods of the day carry the most forecast uncertainty?
         </p>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={metrics.error_by_period} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis
-              dataKey="period"
-              tick={{ fontSize: 9, fill: '#9ca3af' }}
-              interval={5}
-              tickFormatter={periodToTime}
-              label={{ value: 'Settlement Period (UTC)', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
-            />
-            <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-            <Tooltip
-              formatter={(v: number) => [`${v.toFixed(0)} MW`]}
-              labelFormatter={(sp) => `Period ${sp} (${periodToTime(Number(sp))})`}
-            />
-            <Bar dataKey="mae" name="MAE (MW)" fill="#f59e0b" radius={[2, 2, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <div className="w-full h-[220px] min-h-[220px] relative">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
+            <BarChart data={metrics.error_by_period} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="period"
+                tick={{ fontSize: 9, fill: '#9ca3af' }}
+                interval={5}
+                tickFormatter={periodToTime}
+                label={{ value: 'Settlement Period (UTC)', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
+              />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
+              <Tooltip
+                formatter={(v: number) => [`${v.toFixed(0)} MW`]}
+                labelFormatter={(sp) => `Period ${sp} (${periodToTime(Number(sp))})`}
+              />
+              <Bar dataKey="mae" name="MAE (MW)" fill="#f59e0b" radius={[2, 2, 0, 0]} isAnimationActive={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ── Daily MAE ─────────────────────────────────────────────────────── */}
@@ -171,23 +175,25 @@ export function AccuracyPanel({ metrics }: Props) {
         <p className="text-xs text-gray-400 mb-3">
           Were some days harder to forecast than others?
         </p>
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={metrics.daily_summary} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis
-              dataKey="date"
-              tick={{ fontSize: 9, fill: '#9ca3af' }}
-              interval={4}
-              tickFormatter={(d: string) => d.slice(5)}
-              label={{ value: 'Date (Jan 2026)', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
-            />
-            <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-            <Tooltip formatter={(v: number) => [`${v.toFixed(0)} MW`]} labelFormatter={(d) => `Date: ${d}`} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Line type="monotone" dataKey="mae" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} name="MAE (MW)" />
-            <Line type="monotone" dataKey="rmse" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} name="RMSE (MW)" />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="w-full h-[220px] min-h-[220px] relative">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
+            <LineChart data={metrics.daily_summary} margin={{ top: 4, right: 8, left: 0, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 9, fill: '#9ca3af' }}
+                interval={4}
+                tickFormatter={(d: string) => d.slice(5)}
+                label={{ value: 'Date (Jan 2026)', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
+              />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
+              <Tooltip formatter={(v: number) => [`${v.toFixed(0)} MW`]} labelFormatter={(d) => `Date: ${d}`} />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line type="monotone" dataKey="mae" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} name="MAE (MW)" isAnimationActive={false} />
+              <Line type="monotone" dataKey="rmse" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 2 }} name="RMSE (MW)" isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* ── Full Time Series ───────────────────────────────────────────────── */}
@@ -198,31 +204,33 @@ export function AccuracyPanel({ metrics }: Props) {
         <p className="text-xs text-gray-400 mb-3">
           Rolling error across all 48 × 31 = 1,488 settlement periods. Positive = over-forecast.
         </p>
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart
-            data={metrics.time_series.map((p, i) => ({
-              ...p,
-              idx: i,
-              label: p.startTime.slice(5, 10),
-            }))}
-            margin={{ top: 4, right: 8, left: 0, bottom: 20 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 9, fill: '#9ca3af' }}
-              interval={47}
-              label={{ value: 'Date', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
-            />
-            <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
-            <Tooltip
-              formatter={(v: number) => [`${v.toFixed(0)} MW`]}
-              labelFormatter={(d) => `Date: ${d}`}
-            />
-            <ReferenceLine y={0} stroke="#374151" strokeWidth={1} />
-            <Line type="monotone" dataKey="error" stroke="#ef4444" strokeWidth={1} dot={false} name="Error (MW)" />
-          </LineChart>
-        </ResponsiveContainer>
+        <div className="w-full h-[220px] min-h-[220px] relative">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={220}>
+            <LineChart
+              data={metrics.time_series.map((p, i) => ({
+                ...p,
+                idx: i,
+                label: p.startTime.slice(5, 10),
+              }))}
+              margin={{ top: 4, right: 8, left: 0, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 9, fill: '#9ca3af' }}
+                interval={47}
+                label={{ value: 'Date', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#9ca3af' }}
+              />
+              <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} />
+              <Tooltip
+                formatter={(v: number) => [`${v.toFixed(0)} MW`]}
+                labelFormatter={(d) => `Date: ${d}`}
+              />
+              <ReferenceLine y={0} stroke="#374151" strokeWidth={1} />
+              <Line type="monotone" dataKey="error" stroke="#ef4444" strokeWidth={1} dot={false} name="Error (MW)" isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

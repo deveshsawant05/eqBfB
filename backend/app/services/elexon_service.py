@@ -4,13 +4,15 @@ ElexonService — fetches and caches wind data from the Elexon BMRS Insights API
 Key facts confirmed from live API research:
 - Base URL: https://data.elexon.co.uk/bmrs/api/v1
 - No authentication required (public API)
-- FUELHH stream: params are settlementDateFrom/settlementDateTo, fuelType=WIND
-  - Returns {"data": [...]} or plain list. Field: "generation" (MW)
-- WINDFOR stream: params are publishDateTimeFrom/publishDateTimeTo (ISO 8601 UTC)
-  - Returns {"data": [...]} or plain list. Field: "generation" (MW), "publishTime", "startTime"
-- NESO publishes WINDFOR at 8 fixed times/day: 03:30, 05:30, 08:30, 10:30, 12:30, 16:30, 19:30, 23:30 UTC
-- Gate closure proxy: D-1 12:00 UTC → last available forecast run is the 10:30 UTC run on D-1
-- CORS blocks browser calls → backend proxy required
+- FUELHH stream: requires settlementDateFrom / settlementDateTo, fuelType=WIND
+  (Note: 'settlementDate' alone is ignored by the stream endpoint and defaults to today)
+  - Returns array with fields: 'settlementDate', 'settlementPeriod', 'fuelType', 'generation' (MW)
+- WINDFOR stream: requires publishDateTimeFrom / publishDateTimeTo (ISO 8601 UTC)
+  - Returns array with fields: 'publishTime', 'startTime', 'generation' (MW)
+- Gate closure proxy: D-1 12:00 UTC -> last available forecast run is the 10:30 UTC or 11:30 UTC run on D-1
+- Day-ahead wind forecasts are published at hourly resolution; in the UK market, each hourly
+  forecast applies across both half-hour settlement periods (SP 2H-1 and 2H).
+  Expanding hourly forecasts to half-hourly ensures 1-to-1 alignment with FUELHH actuals (48 SPs/day).
 """
 
 import httpx
@@ -39,7 +41,6 @@ class ElexonService:
             resp = await client.get(url, params=final_params)
             resp.raise_for_status()
             data = resp.json()
-        # Stream endpoints sometimes return a plain array, sometimes {"data": [...]}
         if isinstance(data, list):
             return data
         if isinstance(data, dict):
@@ -54,15 +55,21 @@ class ElexonService:
         """
         Fetch FUELHH wind actuals for a single settlement date.
         date: 'YYYY-MM-DD'
-        Returns DataFrame: startTime(UTC), settlementPeriod, actualMW
+        Returns DataFrame: startTime, settlementPeriod, actualMW
         """
         cache_key = f"actuals_{date}"
         if cache_key in _cache:
             return _cache[cache_key]
 
+        # Use settlementDateFrom & settlementDateTo because settlementDate alone
+        # defaults to the current day in Elexon's stream endpoint.
         records = await self._get(
             "/datasets/FUELHH/stream",
-            {"settlementDate": date, "fuelType": "WIND"},
+            {
+                "settlementDateFrom": date,
+                "settlementDateTo": date,
+                "fuelType": "WIND",
+            },
         )
 
         df = self._parse_actuals(records)
@@ -90,7 +97,6 @@ class ElexonService:
 
     def _parse_actuals(self, records: list[dict]) -> pd.DataFrame:
         """Parse raw FUELHH records into a clean DataFrame."""
-        # Filter WIND just in case server-side filtering didn't apply
         wind = [r for r in records if r.get("fuelType", "").upper() == "WIND"]
         if not wind:
             return pd.DataFrame(columns=["startTime", "settlementPeriod", "actualMW"])
@@ -99,13 +105,12 @@ class ElexonService:
         df["startTime"] = pd.to_datetime(df["startTime"], utc=True)
         df = df.rename(columns={"generation": "actualMW"})
 
-        # Derive startTime from settlementDate + settlementPeriod if startTime not present
-        if "startTime" not in df.columns and "settlementDate" in df.columns:
-            df["startTime"] = pd.to_datetime(df["settlementDate"], utc=True) + \
-                pd.to_timedelta((df["settlementPeriod"] - 1) * 30, unit="min")
+        if "settlementPeriod" in df.columns:
+            df["settlementPeriod"] = df["settlementPeriod"].astype(int)
 
-        df = df[["startTime", "settlementPeriod", "actualMW"]].drop_duplicates("startTime")
-        df = df.sort_values("startTime").reset_index(drop=True)
+        # Deduplicate and sort
+        df = df[["startTime", "settlementPeriod", "actualMW"]].drop_duplicates("settlementPeriod")
+        df = df.sort_values("settlementPeriod").reset_index(drop=True)
         return df
 
     # -------------------------------------------------------------------------
@@ -119,7 +124,7 @@ class ElexonService:
         for each settlement period of delivery_date.
 
         delivery_date: 'YYYY-MM-DD'
-        Returns DataFrame: startTime(UTC), settlementPeriod, forecastMW, publishTime(UTC)
+        Returns DataFrame: startTime, settlementPeriod, forecastMW, publishTime
         """
         cache_key = f"forecasts_{delivery_date}"
         if cache_key in _cache:
@@ -145,7 +150,7 @@ class ElexonService:
     async def get_all_forecasts_jan2026(self) -> pd.DataFrame:
         """
         For every delivery day in Jan 2026, fetch the latest WINDFOR forecast
-        published before D-1 12:00 UTC gate closure.
+        published before D-1 12:00 UTC gate closure, expanded to half-hourly resolution.
         """
         cache_key = "all_forecasts_jan2026"
         if cache_key in _cache:
@@ -172,8 +177,7 @@ class ElexonService:
         jan_end = pd.Timestamp("2026-02-01", tz="UTC")
         df_raw = df_raw[(df_raw["startTime"] >= jan_start) & (df_raw["startTime"] < jan_end)].copy()
 
-        # Gate closure for each delivery day: normalize startTime to midnight UTC, subtract 12h
-        # i.e., gate_closure = startTime.date at 00:00 UTC - 12h = D-1 12:00 UTC
+        # Gate closure for each delivery day: delivery date midnight UTC minus 12 hours (D-1 12:00 UTC)
         df_raw["deliveryMidnight"] = df_raw["startTime"].dt.normalize()
         df_raw["gateClosureTime"] = df_raw["deliveryMidnight"] - pd.Timedelta(hours=12)
         df_raw = df_raw[df_raw["publishTime"] <= df_raw["gateClosureTime"]].copy()
@@ -181,26 +185,41 @@ class ElexonService:
         if df_raw.empty:
             return pd.DataFrame(columns=["startTime", "settlementPeriod", "forecastMW", "publishTime"])
 
-        # Rename generation → forecastMW
+        # Normalize generation column
         gen_col = "generation" if "generation" in df_raw.columns else (
             "forecastVolume" if "forecastVolume" in df_raw.columns else None)
         if gen_col:
             df_raw = df_raw.rename(columns={gen_col: "forecastMW"})
 
-        # Latest forecast per startTime
+        # Pick latest publishTime per startTime
         df = (
             df_raw.sort_values("publishTime")
             .groupby("startTime", as_index=False)
             .last()
         )
 
-        cols = ["startTime", "forecastMW", "publishTime"]
-        if "settlementPeriod" in df.columns:
-            cols.insert(1, "settlementPeriod")
-        df = df[cols].sort_values("startTime").reset_index(drop=True)
+        # Expand hourly forecasts to half-hourly
+        expanded = []
+        for _, row in df.iterrows():
+            st = row["startTime"]
+            midnight = st.normalize()
+            sp1 = int((st - midnight).total_seconds() // 1800) + 1
+            r1 = row.to_dict()
+            r1["settlementPeriod"] = sp1
+            r1["startTime"] = st
+            expanded.append(r1)
 
-        _cache[cache_key] = df
-        return df
+            if st.minute == 0 and sp1 < 48:
+                r2 = row.to_dict()
+                r2["settlementPeriod"] = sp1 + 1
+                r2["startTime"] = st + pd.Timedelta(minutes=30)
+                expanded.append(r2)
+
+        df_res = pd.DataFrame(expanded).drop_duplicates(["startTime", "settlementPeriod"])
+        df_res = df_res[["startTime", "settlementPeriod", "forecastMW", "publishTime"]].sort_values("startTime").reset_index(drop=True)
+
+        _cache[cache_key] = df_res
+        return df_res
 
     def _parse_forecasts(
         self,
@@ -208,7 +227,7 @@ class ElexonService:
         delivery_dt: datetime,
         gate_closure: datetime,
     ) -> pd.DataFrame:
-        """Parse raw WINDFOR records: filter for delivery_dt, apply gate closure, pick latest."""
+        """Parse raw WINDFOR records: filter for delivery_dt, apply gate closure, pick latest, expand to 48 SPs."""
         if not records:
             return pd.DataFrame(columns=["startTime", "settlementPeriod", "forecastMW", "publishTime"])
 
@@ -220,14 +239,13 @@ class ElexonService:
         delivery_date_ts = pd.Timestamp(delivery_dt)
         df = df[df["startTime"].dt.date == delivery_date_ts.date()].copy()
 
-        # Apply gate closure
+        # Apply gate closure cutoff
         gate_ts = pd.Timestamp(gate_closure)
         df = df[df["publishTime"] <= gate_ts].copy()
 
         if df.empty:
             return pd.DataFrame(columns=["startTime", "settlementPeriod", "forecastMW", "publishTime"])
 
-        # Rename generation field
         gen_col = "generation" if "generation" in df.columns else (
             "forecastVolume" if "forecastVolume" in df.columns else None)
         if gen_col:
@@ -240,18 +258,30 @@ class ElexonService:
             .last()
         )
 
-        cols = ["startTime", "forecastMW", "publishTime"]
-        if "settlementPeriod" in df.columns:
-            cols.insert(1, "settlementPeriod")
-        else:
-            # Derive from startTime relative to delivery midnight
-            delivery_midnight = pd.Timestamp(delivery_dt)
-            df["settlementPeriod"] = ((df["startTime"] - delivery_midnight).dt.total_seconds() / 1800).astype(int) + 1
-            cols.insert(1, "settlementPeriod")
+        # Expand hourly forecasts to half-hourly settlement periods
+        delivery_midnight = pd.Timestamp(delivery_dt).normalize()
+        expanded = []
+        for _, row in df.iterrows():
+            st = row["startTime"]
+            sp1 = int((st - delivery_midnight).total_seconds() // 1800) + 1
+            r1 = row.to_dict()
+            r1["settlementPeriod"] = sp1
+            r1["startTime"] = st.strftime("%Y-%m-%dT%H:%M:%SZ")
+            r1["publishTime"] = row["publishTime"].strftime("%Y-%m-%dT%H:%M:%SZ")
+            expanded.append(r1)
 
-        df = df[cols].sort_values("startTime").reset_index(drop=True)
+            # If hourly record, also populate the second half-hour
+            if st.minute == 0 and sp1 < 48:
+                r2 = row.to_dict()
+                r2["settlementPeriod"] = sp1 + 1
+                r2["startTime"] = (st + pd.Timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                r2["publishTime"] = row["publishTime"].strftime("%Y-%m-%dT%H:%M:%SZ")
+                expanded.append(r2)
 
-        # Serialize datetime to ISO string for JSON compatibility
-        df["startTime"] = df["startTime"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-        df["publishTime"] = df["publishTime"].dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-        return df
+        df_out = (
+            pd.DataFrame(expanded)
+            .drop_duplicates("settlementPeriod")
+            .sort_values("settlementPeriod")
+            .reset_index(drop=True)
+        )
+        return df_out[["startTime", "settlementPeriod", "forecastMW", "publishTime"]]
