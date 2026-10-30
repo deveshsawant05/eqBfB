@@ -25,6 +25,16 @@ function periodToTime(period: number): string {
   return `${h}:${m}`;
 }
 
+function formatDayLabel(dateStr: string): string {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const day = parseInt(parts[2], 10);
+    return `${day} Jan`;
+  }
+  return dateStr;
+}
+
 export function AccuracyPanel({ metrics }: Props) {
   const biasSign = metrics.bias >= 0 ? '+' : '';
 
@@ -71,7 +81,7 @@ export function AccuracyPanel({ metrics }: Props) {
       <div className="panel bg-slate-50 border-slate-200 text-xs text-slate-600 leading-relaxed">
         <p>
           <strong className="text-slate-800">Operational context:</strong> Evaluated across{' '}
-          <span className="font-mono font-medium text-slate-800">{metrics.n_points.toLocaleString()}</span> half-hourly settlement periods in January 2026.
+          <span className="font-mono font-medium text-slate-800">{metrics.n_points.toLocaleString()}</span> half-hourly settlement periods across all 31 days in January 2026.
           When sizing day-ahead procurement decisions, an MAE of{' '}
           <span className="font-mono font-medium text-slate-800">{metrics.mae.toFixed(0)} MW</span> provides the baseline margin needed to absorb forecast deviations before turning to the Balancing Mechanism.
         </p>
@@ -79,13 +89,13 @@ export function AccuracyPanel({ metrics }: Props) {
 
       {/* ── Bias by Settlement Period ──────────────────────────────────────── */}
       <div className="panel space-y-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-2 pb-1 border-b border-slate-100">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 pb-2 border-b border-slate-100">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">
               Average Forecast Bias by Settlement Period (MW)
             </h3>
             <p className="text-xs text-slate-500">
-              Positive values indicate periods where forecasts were higher than actual generation.
+              Half-hourly breakdown across the day (Periods 1 to 48, UTC). Positive values indicate over-forecasting.
             </p>
           </div>
           <div className="flex items-center gap-3 text-xs text-slate-500 font-mono">
@@ -98,19 +108,24 @@ export function AccuracyPanel({ metrics }: Props) {
           </div>
         </div>
 
-        <div className="w-full h-[240px] min-h-[240px] relative pt-1">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
-            <BarChart data={metrics.error_by_period} margin={{ top: 8, right: 12, left: 0, bottom: 20 }}>
+        <div className="w-full h-[260px] min-h-[260px] relative pt-1">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={260}>
+            <BarChart data={metrics.error_by_period} margin={{ top: 10, right: 16, left: 10, bottom: 25 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis
                 dataKey="period"
-                tick={{ fontSize: 9, fill: '#64748b' }}
-                interval={5}
+                tick={{ fontSize: 10, fill: '#64748b' }}
+                tickMargin={8}
+                interval={3}
                 stroke="#cbd5e1"
                 tickFormatter={periodToTime}
-                label={{ value: 'Settlement Period (Half-Hour Beginning UTC)', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#64748b' }}
               />
-              <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" />
+              <YAxis
+                tick={{ fontSize: 10, fill: '#64748b' }}
+                stroke="#cbd5e1"
+                width={50}
+                tickFormatter={(v) => v.toLocaleString()}
+              />
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;
@@ -142,36 +157,47 @@ export function AccuracyPanel({ metrics }: Props) {
 
       {/* ── Daily MAE Trend ────────────────────────────────────────────────── */}
       <div className="panel space-y-2">
-        <div className="pb-1 border-b border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-900">
-            Daily Forecast MAE (January 2026)
-          </h3>
-          <p className="text-xs text-slate-500">
-            Day-by-day mean absolute error across the 31 delivery days of the month.
-          </p>
+        <div className="flex flex-wrap items-baseline justify-between gap-2 pb-2 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">
+              Daily Forecast MAE (January 2026)
+            </h3>
+            <p className="text-xs text-slate-500">
+              Day-by-day mean absolute error and root mean squared error across all 31 delivery days.
+            </p>
+          </div>
         </div>
 
-        <div className="w-full h-[230px] min-h-[230px] relative pt-1">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={230}>
-            <LineChart data={metrics.daily_summary} margin={{ top: 8, right: 12, left: 0, bottom: 20 }}>
+        <div className="w-full h-[260px] min-h-[260px] relative pt-1">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={260}>
+            <LineChart data={metrics.daily_summary} margin={{ top: 10, right: 16, left: 10, bottom: 25 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 9, fill: '#64748b' }}
-                interval={3}
+                tick={{ fontSize: 10, fill: '#64748b' }}
+                tickMargin={8}
+                interval={2}
                 stroke="#cbd5e1"
-                tickFormatter={(d: string) => d.slice(5)}
-                label={{ value: 'Date (MM-DD)', position: 'insideBottom', offset: -12, fontSize: 10, fill: '#64748b' }}
+                tickFormatter={formatDayLabel}
               />
-              <YAxis tick={{ fontSize: 10, fill: '#64748b' }} stroke="#cbd5e1" />
+              <YAxis
+                tick={{ fontSize: 10, fill: '#64748b' }}
+                stroke="#cbd5e1"
+                width={50}
+                tickFormatter={(v) => v.toLocaleString()}
+              />
               <Tooltip
-                formatter={(v: number) => [`${Math.round(v)} MW`]}
-                labelFormatter={(d) => `Date: ${d}`}
+                formatter={(v: number) => [`${Math.round(v).toLocaleString()} MW`]}
+                labelFormatter={(d) => `Delivery Date: ${d}`}
                 contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '0.5rem', fontSize: '11px' }}
               />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="mae" stroke="#0284c7" strokeWidth={1.8} dot={{ r: 2 }} name="MAE (MW)" isAnimationActive={false} />
-              <Line type="monotone" dataKey="rmse" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="3 3" dot={{ r: 2 }} name="RMSE (MW)" isAnimationActive={false} />
+              <Legend
+                verticalAlign="top"
+                align="right"
+                wrapperStyle={{ paddingBottom: 10, fontSize: 11 }}
+              />
+              <Line type="monotone" dataKey="mae" stroke="#0284c7" strokeWidth={1.8} dot={{ r: 2.5 }} name="MAE (MW)" isAnimationActive={false} />
+              <Line type="monotone" dataKey="rmse" stroke="#8b5cf6" strokeWidth={1.5} strokeDasharray="3 3" dot={{ r: 2.5 }} name="RMSE (MW)" isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>

@@ -108,9 +108,9 @@ class ElexonService:
         if "settlementPeriod" in df.columns:
             df["settlementPeriod"] = df["settlementPeriod"].astype(int)
 
-        # Deduplicate and sort
-        df = df[["startTime", "settlementPeriod", "actualMW"]].drop_duplicates("settlementPeriod")
-        df = df.sort_values("settlementPeriod").reset_index(drop=True)
+        # Deduplicate by startTime and sort chronologically
+        df = df[["startTime", "settlementPeriod", "actualMW"]].drop_duplicates("startTime")
+        df = df.sort_values("startTime").reset_index(drop=True)
         return df
 
     # -------------------------------------------------------------------------

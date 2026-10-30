@@ -154,36 +154,26 @@ export function ForecastChart({ data, selectedDate, forecastPublishTime }: Props
       {/* Chart Canvas */}
       <div className="w-full h-[380px] min-h-[380px] relative pt-2">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={380}>
-          <ComposedChart data={data} margin={{ top: 10, right: 16, left: 0, bottom: 20 }}>
+          <ComposedChart data={data} margin={{ top: 10, right: 16, left: 10, bottom: 25 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
             <XAxis
               dataKey="label"
               tick={{ fontSize: 10, fill: '#64748b' }}
+              tickMargin={8}
               interval={5}
               stroke="#cbd5e1"
-              label={{
-                value: 'Settlement Period (Half-Hour Beginning UTC)',
-                position: 'insideBottom',
-                offset: -12,
-                fontSize: 11,
-                fill: '#64748b',
-              }}
             />
             <YAxis
               tick={{ fontSize: 10, fill: '#64748b' }}
               stroke="#cbd5e1"
-              label={{
-                value: 'Generation (MW)',
-                angle: -90,
-                position: 'insideLeft',
-                offset: 12,
-                fontSize: 11,
-                fill: '#64748b',
-              }}
+              width={55}
+              tickFormatter={(v) => v.toLocaleString()}
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend
-              wrapperStyle={{ fontSize: 12, paddingTop: 10 }}
+              verticalAlign="top"
+              align="right"
+              wrapperStyle={{ paddingBottom: 10, fontSize: 12 }}
               formatter={(value) => <span className="text-slate-700 font-medium">{value}</span>}
             />
 
