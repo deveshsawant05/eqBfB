@@ -2,10 +2,9 @@ import axios from 'axios';
 import type { ForecastPoint, ActualPoint, AccuracyMetrics } from '../types';
 
 // In development, Vite proxies /api → backend (see vite.config.ts)
-// In production Docker, VITE_API_URL is set at build time
-const BASE_URL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL
-  : '';   // empty = same origin (works with Vite proxy in dev)
+// In production, VITE_API_URL points to the Render backend URL
+const rawBase = import.meta.env.VITE_API_URL;
+const BASE_URL = rawBase ? rawBase.replace(/\/+$/, '') : '';
 
 const api = axios.create({
   baseURL: BASE_URL,

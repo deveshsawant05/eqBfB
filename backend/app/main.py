@@ -42,18 +42,12 @@ This application was built with the assistance of Google Antigravity AI coding a
     redoc_url="/redoc",
 )
 
-# CORS — allow the Vite dev server and production Vercel domain
+# CORS — allow Vite dev server, Vercel deployments, and production origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://*.vercel.app",
-        # Allow all origins or specify domains
-        "*",
-    ],
+    allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 

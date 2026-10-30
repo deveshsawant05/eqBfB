@@ -156,34 +156,56 @@ Returns aggregated forecast performance metrics for January 2026:
 
 ## ☁️ Deployment Instructions
 
-### Deploy Backend to Heroku (Container Registry)
+### 1. Deploy Backend to Render (Free Web Service)
+
+Render can build and host the FastAPI backend directly from your Git repository:
+
+1. Push this repository to **GitHub** or **GitLab**.
+2. Go to your [Render Dashboard](https://dashboard.render.com/) and click **New +** → **Web Service**.
+3. Select your repository.
+4. Configure the service settings:
+   - **Name**: `gridbricks-backend`
+   - **Region**: Frankfurt (EU Central) or London (UK)
+   - **Root Directory**: `backend`
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Plan**: `Free`
+5. Under **Advanced Settings**:
+   - **Health Check Path**: `/health`
+   - **Auto-Deploy**: `Yes`
+6. Click **Create Web Service**. Once deployed, Render will provide a public URL like:
+   `https://gridbricks-backend.onrender.com`
+
+*(Alternatively, use Render Blueprints: the included `render.yaml` at project root preconfigures this automatically).*
+
+---
+
+### 2. Deploy Frontend to Vercel
+
+Once your Render backend is live, deploy the React frontend to Vercel:
+
+1. In the [Vercel Dashboard](https://vercel.com/new), import your repository.
+2. In the project setup screen:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: Click *Edit* and select `frontend`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. Expand **Environment Variables** and add:
+   - **Key**: `VITE_API_URL`
+   - **Value**: `https://gridbricks-backend.onrender.com` *(your Render backend URL from step 1)*
+4. Click **Deploy**. Vercel will build and publish your frontend to a public URL (e.g. `https://gridbricks.vercel.app`).
+5. The included `frontend/vercel.json` ensures all SPA client-side routes redirect seamlessly to `index.html`.
+
+---
+
+### Alternative: Deploy Backend via Docker (Heroku / Container Registries)
 ```bash
-# Login to Heroku Container Registry
-heroku login
-heroku container:login
-
-# Create app
-heroku create gridbricks-api
-
-# Build and push container
+# Heroku Container Registry deployment
 cd backend
-heroku container:push web --app gridbricks-api
-heroku container:release web --app gridbricks-api
-
-# Verify deployment
-heroku open --app gridbricks-api
+heroku container:push web --app <your-app-name>
+heroku container:release web --app <your-app-name>
 ```
-
-### Deploy Frontend to Vercel
-```bash
-cd frontend
-# Set production backend URL
-echo "VITE_API_URL=https://gridbricks-api.herokuapp.com" > .env.production
-
-# Deploy with Vercel CLI
-vercel --prod
-```
-In Vercel Project Settings, ensure `VITE_API_URL` is configured to point to your live backend endpoint.
 
 ---
 
